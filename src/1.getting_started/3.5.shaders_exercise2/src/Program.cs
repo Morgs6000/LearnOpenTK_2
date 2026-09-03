@@ -1,0 +1,151 @@
+﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Windowing.GraphicsLibraryFramework;
+
+namespace LearnOpenTK.src;
+
+public class Program
+{
+    // configurações
+    private const uint SCR_WIDTH = 800;
+    private const uint SCR_HEIGHT = 600;
+    
+    private unsafe static void Main(string[] args)
+    {
+        // glfw: inicializar e configurar
+        // --------------------------------------------------
+        GLFW.Init();
+        GLFW.WindowHint(WindowHintInt.ContextVersionMajor, 3);
+        GLFW.WindowHint(WindowHintInt.ContextVersionMinor, 3);
+        GLFW.WindowHint(WindowHintOpenGlProfile.OpenGlProfile, OpenGlProfile.Core);
+
+        if (OperatingSystem.IsMacOS())
+        {
+            GLFW.WindowHint(WindowHintBool.OpenGLForwardCompat, true);
+        }
+
+        // criação da janela glfw
+        // --------------------------------------------------
+        Window* window = GLFW.CreateWindow((int)SCR_WIDTH, (int)SCR_HEIGHT, "Learn OpenTK", null, null);
+
+        if (window == null)
+        {
+            Console.WriteLine("Falha ao criar a janela OpenTK");
+            GLFW.Terminate();
+        }
+
+        int pWidth;
+        int pHeight;
+
+        // Obtém o tamanho da janela passado para glfwCreateWindow
+        GLFW.GetWindowSize(window, out pWidth, out pHeight);
+
+        // Obtém a resolução do monitor principal
+        VideoMode* vidmode = GLFW.GetVideoMode(GLFW.GetPrimaryMonitor());
+
+        // Centralizar a janela
+        GLFW.SetWindowPos(
+            window,
+            (vidmode->Width - pWidth) / 2,
+            (vidmode->Height - pHeight) / 2
+        );
+
+        GLFW.MakeContextCurrent(window);
+
+        GL.LoadBindings(new GLFWBindingsContext());
+
+        GLFW.SetFramebufferSizeCallback(window, FramebufferSizeCallback);
+
+        // construir e compilar nosso programa de shader
+        // --------------------------------------------------
+        Shader ourShader = new Shader("src/shader.vs", "src/shader.fs"); // você pode nomear seus arquivos de shader como quiser
+
+        // configurar dados de vértice (e buffer(s)) e configurar atributos de vértice
+        // --------------------------------------------------
+        float[] vertices =
+        {
+            // positions           // colors
+            -0.5f, -0.5f,  0.0f,   1.0f, 0.0f, 0.0f,
+             0.5f, -0.5f,  0.0f,   0.0f, 1.0f, 0.0f,
+             0.0f,  0.5f,  0.0f,   0.0f, 0.0f, 1.0f
+        };
+
+        uint VAO, VBO;
+
+        GL.GenVertexArrays(1, out VAO);
+        GL.GenBuffers(1, out VBO);
+
+        // primeiro, vincule o Vertex Array Object; depois, vincule e configure o(s) buffer(s) de vértices; e, em seguida, configure o(s) atributo(s) de vértice.
+        GL.BindVertexArray(VAO);
+
+        GL.BindBuffer(BufferTarget.ArrayBuffer, VBO);
+        GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+
+        // atributo de posição
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 6 * sizeof(float), 0);
+        GL.EnableVertexAttribArray(0);
+
+        // atributo de cor
+        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 6 * sizeof(float), 3 * sizeof(float));
+        GL.EnableVertexAttribArray(1);
+        
+        // Você pode desvincular o VAO posteriormente para que outras chamadas relacionadas a VAOs não modifiquem acidentalmente este VAO, mas isso raramente acontece. Modificar outros
+        // VAOs exige uma chamada para glBindVertexArray de qualquer forma, então geralmente não desvinculamos VAOs (nem VBOs) quando não é diretamente necessário.
+        // GL.BindVertexArray(0);
+
+        // loop de renderização
+        // --------------------------------------------------
+        while (!GLFW.WindowShouldClose(window))
+        {
+            // input
+            // --------------------------------------------------
+            ProcessInput(window);
+
+            // render
+            // --------------------------------------------------
+            GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            GL.Clear(ClearBufferMask.ColorBufferBit);
+
+            // renderiza o triângulo
+            ourShader.Use();
+            
+            float offset = 0.5f;
+            ourShader.SetFloat("xOffset", offset);
+
+            GL.BindVertexArray(VAO);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+            // glfw: troca os buffers e processa eventos de E/S (teclas pressionadas/liberadas, movimento do mouse, etc.)
+            // --------------------------------------------------
+            GLFW.SwapBuffers(window);
+            GLFW.PollEvents();
+        }
+
+        // opcional: desalocar todos os recursos assim que não forem mais necessários:
+        // --------------------------------------------------
+        GL.DeleteVertexArrays(1, ref VAO);
+        GL.DeleteBuffers(1, ref VBO);
+
+        // glfw: encerra, liberando todos os recursos do GLFW alocados anteriormente.
+        // --------------------------------------------------
+        GLFW.Terminate();
+    }
+
+    // processar toda a entrada: consultar a GLFW para saber se teclas relevantes foram pressionadas ou liberadas neste quadro e reagir de acordo
+    // --------------------------------------------------
+    private static unsafe void ProcessInput(Window* window)
+    {
+        if (GLFW.GetKey(window, Keys.Escape) == InputAction.Press)
+        {
+            GLFW.SetWindowShouldClose(window, true);
+        }
+    }
+
+    // glfw: sempre que o tamanho da janela é alterado (pelo SO ou por redimensionamento do usuário), esta função de callback é executada
+    // --------------------------------------------------
+    private static unsafe void FramebufferSizeCallback(Window* window, int width, int height)
+    {
+        // certifique-se de que a viewport corresponda às novas dimensões da janela; observe que a largura e
+        // a altura serão significativamente maiores do que as especificadas em telas Retina.
+        GL.Viewport(0, 0, width, height);
+    }
+}
